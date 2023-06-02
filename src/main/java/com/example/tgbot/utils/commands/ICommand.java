@@ -1,8 +1,7 @@
 package com.example.tgbot.utils.commands;
 
 import com.example.tgbot.bots.WeatherBot;
-import com.example.tgbot.model.Weather;
 
-public interface Command {
+public interface ICommand {
     void execute(Long chatId, WeatherBot bot);
 }

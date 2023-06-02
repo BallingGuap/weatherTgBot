@@ -1,6 +1,10 @@
 package com.example.tgbot.bots;
 
 import com.example.tgbot.service.WeatherService;
+import com.example.tgbot.utils.commands.ICommand;
+import com.example.tgbot.utils.commands.ICommand;
+import com.example.tgbot.utils.commands.IWaitable;
+import com.example.tgbot.utils.commands.WeatherCommand;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
@@ -14,28 +18,45 @@ import java.util.Map;
 
 @Component
 public class WeatherBot extends TelegramLongPollingBot {
-    private final Map<Long, Boolean> waitingCity =  new HashMap<>();
+    private final Map<String, ICommand> commandMap  =  new HashMap<>();
     private WeatherService weatherService;
 
     public WeatherBot(WeatherService weatherService) {
         super("6235045481:AAHCeXH7xtmv-eeyBq2sMFsUwt1w6IeX7FQ");
         this.weatherService = weatherService;
+        commandMap.put("/weather", new WeatherCommand(weatherService));
     }
 
     @Override
     public void onUpdateReceived(Update update) {
 
-        if(update.hasMessage()&&update.getMessage().hasText()){
+        if(update.hasMessage()&&update.getMessage().hasText()) {
             String message = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
-
-            if(message.equals("/weather")){
-                sendText(chatId, "Type city");
-                waitingCity.put(chatId, true);
-            } else if (Boolean.TRUE.equals(waitingCity.get(chatId))) {
-                weatherService.sendWeather(chatId, message, this);
-                waitingCity.put(chatId, false);
+            for (var c : commandMap.entrySet()) {
+                if (c.getValue() instanceof IWaitable) {
+                    IWaitable waitable = (IWaitable) c.getValue();
+                    if(waitable.isWaitable()){
+                        waitable.answerExecute(chatId, message, this);
+                    }
+                }
             }
+
+            ICommand command = commandMap.get(message);
+            if (command != null) {
+                command.execute(chatId, this);
+                if (command instanceof IWaitable) {
+                    IWaitable waitable = (IWaitable) command;
+                    waitable.waitAnswer();
+                }
+            }
+//            if(message.equals("/weather")){
+//                sendText(chatId, "Type city");
+//                waitingCity.put(chatId, true);
+//            } else if (Boolean.TRUE.equals(waitingCity.get(chatId))) {
+//                weatherService.sendWeather(chatId, message, this);
+//                waitingCity.put(chatId, false);
+//            }
         }
     }
 
